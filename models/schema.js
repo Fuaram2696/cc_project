@@ -30,6 +30,7 @@ const initDB = async () => {
                 total_copies INTEGER DEFAULT 1,
                 available_copies INTEGER DEFAULT 1,
                 cover_url TEXT,
+                pdf_url TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
@@ -56,6 +57,17 @@ const initDB = async () => {
                 action TEXT NOT NULL,
                 details JSONB,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // 5. Reservations table
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS reservations (
+                id SERIAL PRIMARY KEY,
+                book_id INTEGER REFERENCES books(id) ON DELETE CASCADE,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                status VARCHAR(50) CHECK (status IN ('Pending', 'Fulfilled', 'Cancelled')) DEFAULT 'Pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
 

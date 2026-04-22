@@ -2,9 +2,9 @@
 // In production (Vercel), use the full Render backend URL.
 // For local dev, use relative path.
 const RENDER_BACKEND_URL = "https://cc-project-backend-pk9d.onrender.com";
-const API_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+const API_URL = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
     ? "/api"
-    : `${RENDER_BACKEND_URL}/api`;
+    : (window.location.protocol === "file:" ? "http://localhost:5000/api" : `${RENDER_BACKEND_URL}/api`);
 const state = {
     token: localStorage.getItem("token"),
     user: JSON.parse(localStorage.getItem("user") || "null"),
@@ -61,6 +61,18 @@ function setView(viewName) {
     if (viewName === 'users') fetchUsers();
     if (viewName === 'transactions') fetchLoans();
     if (viewName === 'dashboard') updateDashboard();
+    if (viewName === 'chatbot') {
+        const input = document.getElementById('chat-input');
+        if (input) input.focus();
+    }
+
+    // Auto-hide mobile menu
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar && sidebar.classList.contains('open')) {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('open');
+    }
 }
 
 // --- Auth Logic ---
@@ -186,7 +198,12 @@ function renderBooks(books) {
                         ${book.status}
                     </span>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        ${book.status === 'Available' ? `<button class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="issueBook(${book.id})">Borrow</button>` : ''}
+                        <i class="fas fa-qrcode" style="color: var(--primary); cursor: pointer;" onclick="showQRCode(${book.id})" title="View QR Code"></i>
+                        ${book.pdf_url ? `<a href="${book.pdf_url}" target="_blank" title="Read E-Book"><i class="fas fa-file-pdf" style="color: #e11d48; cursor: pointer;"></i></a>` : ''}
+                        ${book.status === 'Available' 
+                            ? `<button class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="issueBook(${book.id})">Borrow</button>` 
+                            : `<button class="btn" style="background: var(--warning); color: #fff; padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="reserveBook(${book.id})">Reserve</button>`
+                        }
                         ${state.user.role === 'Admin' ? `<i class="fas fa-trash" style="color: var(--danger); cursor: pointer;" onclick="deleteBook(${book.id})"></i>` : ''}
                     </div>
                 </div>
@@ -200,13 +217,15 @@ async function addBook() {
     const title = document.getElementById('new-book-title').value;
     const author = document.getElementById('new-book-author').value;
     const category = document.getElementById('new-book-category').value;
-    const file = document.getElementById('new-book-cover').files[0];
+    const coverFile = document.getElementById('new-book-cover').files[0];
+    const pdfFile = document.getElementById('new-book-pdf').files[0];
 
     const formData = new FormData();
     formData.append("title", title);
     formData.append("author", author);
     formData.append("category", category);
-    if (file) formData.append("image", file);
+    if (coverFile) formData.append("cover", coverFile);
+    if (pdfFile) formData.append("pdf", pdfFile);
 
     try {
         const res = await fetch(`${API_URL}/books/add`, {
@@ -260,16 +279,25 @@ async function issueBook(bookId) {
 // --- Dashboard & Analytics ---
 async function updateDashboard() {
     try {
+        const statsRes = await fetch(`${API_URL}/analytics`, {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        
+        if (statsRes.ok) {
+            const data = await statsRes.json();
+            document.getElementById('stat-total-books').innerText = data.totalBooks;
+            // Active users or other stats could go here. We'll leave available/issued static for now or calculate from books.
+            
+            initChart(data);
+        }
+
+        // We still need all books to calculate Available/Issued/Overdue if not provided by analytics
         const res = await fetch(`${API_URL}/books`);
         const books = await res.json();
-        
-        // Stats
-        document.getElementById('stat-total-books').innerText = books.length;
         document.getElementById('stat-available').innerText = books.filter(b => b.status === 'Available').length;
         document.getElementById('stat-issued').innerText = books.filter(b => b.status === 'Issued').length;
         
-        initChart(books);
-        renderRecommendations(books);
+        renderRecommendations();
         if (state.user.role !== 'Student') fetchActivityLogs();
     } catch (err) { console.error("Dashboard error:", err); }
 }
@@ -296,35 +324,47 @@ async function fetchActivityLogs() {
     } catch (err) { console.error("Error fetching logs:", err); }
 }
 
-function initChart(books) {
+function initChart(data) {
     const ctx = document.getElementById('libraryChart').getContext('2d');
     if (state.charts.main) state.charts.main.destroy();
 
-    const categories = [...new Set(books.map(b => b.category))];
-    const data = categories.map(cat => books.filter(b => b.category === cat).length);
+    const labels = data.mostBorrowed.map(b => b.title);
+    const chartData = data.mostBorrowed.map(b => parseInt(b.borrow_count));
 
     state.charts.main = new Chart(ctx, {
-        type: 'doughnut',
+        type: 'bar',
         data: {
-            labels: categories,
+            labels: labels,
             datasets: [{
-                data: data,
+                label: 'Borrow Count',
+                data: chartData,
                 backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#64748b']
             }]
         },
         options: {
             responsive: true,
-            plugins: { legend: { position: 'bottom' } }
+            plugins: { legend: { display: false } }
         }
     });
 }
 
-function renderRecommendations(books) {
+async function renderRecommendations() {
     const list = document.getElementById('ai-recommendations');
-    list.innerHTML = "";
-    // Simulated AI Recommendation: Show 3 random books
-    const shuffled = [...books].sort(() => 0.5 - Math.random());
-    renderBooksInElement(shuffled.slice(0, 3), list);
+    list.innerHTML = "<p>Loading recommendations...</p>";
+    try {
+        const res = await fetch(`${API_URL}/books/recommendations`, {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const recs = await res.json();
+        list.innerHTML = "";
+        if (recs.length === 0) {
+            list.innerHTML = "<p>No recommendations yet.</p>";
+            return;
+        }
+        renderBooksInElement(recs, list);
+    } catch (err) {
+        list.innerHTML = "<p>Failed to load recommendations.</p>";
+    }
 }
 
 function renderBooksInElement(books, element) {
@@ -344,6 +384,13 @@ function renderBooksInElement(books, element) {
 }
 
 // --- UI Helpers ---
+function toggleMobileMenu() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if(sidebar) sidebar.classList.toggle('open');
+    if(overlay) overlay.classList.toggle('open');
+}
+
 function openAddBookModal() { document.getElementById('modal-book').classList.remove('hidden'); }
 function closeBookModal() { document.getElementById('modal-book').classList.add('hidden'); }
 
@@ -490,6 +537,74 @@ function logActivity(action, details) {
         <p style="font-size: 0.75rem; color: var(--text-muted);">${details} • Just now</p>
     `;
     log.prepend(item);
+}
+
+// --- New Features Logic ---
+
+async function sendChat() {
+    const input = document.getElementById('chat-input');
+    const query = input.value.trim();
+    if (!query) return;
+
+    const chatMessages = document.getElementById('chat-messages');
+    chatMessages.innerHTML += `<div style="margin-bottom: 1rem; color: var(--text-color);"><strong>You:</strong> ${query}</div>`;
+    input.value = '';
+
+    try {
+        const res = await fetch(`${API_URL}/chatbot`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+            body: JSON.stringify({ query })
+        });
+        const data = await res.json();
+        chatMessages.innerHTML += `<div style="margin-bottom: 1rem; color: var(--primary);"><strong>Bot:</strong> ${data.response}</div>`;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    } catch (err) {
+        chatMessages.innerHTML += `<div style="margin-bottom: 1rem; color: var(--danger);"><strong>Bot:</strong> Error reaching the server.</div>`;
+    }
+}
+
+async function showQRCode(bookId) {
+    document.getElementById('modal-qrcode').classList.remove('hidden');
+    const container = document.getElementById('qr-image-container');
+    container.innerHTML = '<div class="spinner"></div>';
+    
+    try {
+        const res = await fetch(`${API_URL}/books/${bookId}/qrcode`, {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+            container.innerHTML = `<img src="${data.qr_code}" alt="Book QR Code" style="max-width: 200px;">`;
+        } else {
+            container.innerHTML = `<p>${data.message}</p>`;
+        }
+    } catch (err) {
+        container.innerHTML = `<p>Error loading QR code.</p>`;
+    }
+}
+
+function closeQRModal() {
+    document.getElementById('modal-qrcode').classList.add('hidden');
+}
+
+async function reserveBook(bookId) {
+    try {
+        const res = await fetch(`${API_URL}/books/reserve`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${state.token}` 
+            },
+            body: JSON.stringify({ book_id: bookId })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast("Book reserved successfully!");
+        } else {
+            showToast(data.message, 'error');
+        }
+    } catch (err) { showToast("Error reserving book", 'error'); }
 }
 
 // --- Start ---

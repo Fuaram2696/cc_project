@@ -9,6 +9,11 @@ const { initDB } = require('./models/schema');
 const authRoutes = require('./routes/authRoutes');
 const bookRoutes = require('./routes/bookRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
+const chatbotRoutes = require('./routes/chatbotRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
+const cron = require('node-cron');
+const db = require('./config/db');
+const { sendEmail } = require('./utils/emailService');
 
 const app = express();
 
@@ -47,6 +52,36 @@ initDB();
 app.use('/api/auth', authRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/analytics', analyticsRoutes);
+
+// --- Cron Jobs ---
+// Run every day at 8:00 AM to send due date reminders
+cron.schedule('0 8 * * *', async () => {
+  console.log('⏰ Running daily due date reminder check...');
+  try {
+    const result = await db.query(`
+      SELECT t.id, t.due_date, u.email, u.username, b.title 
+      FROM transactions t 
+      JOIN users u ON t.user_id = u.id 
+      JOIN books b ON t.book_id = b.id 
+      WHERE t.status = 'Issued' 
+      AND DATE(t.due_date) = CURRENT_DATE + INTERVAL '1 day'
+    `);
+
+    result.rows.forEach(row => {
+      if (row.email) {
+        sendEmail(
+          row.email,
+          `Reminder: Book Due Tomorrow - ${row.title}`,
+          `Hi ${row.username},\n\nThis is a gentle reminder that the book "${row.title}" is due tomorrow (${new Date(row.due_date).toDateString()}). Please return it to avoid late fines (₹5/day).\n\nThank you!`
+        );
+      }
+    });
+  } catch (err) {
+    console.error('❌ Error running cron job:', err);
+  }
+});
 
 app.get('/', (req, res) => {
   res.send('Library Management System API Running...');
