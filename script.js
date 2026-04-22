@@ -1,7 +1,7 @@
 // --- Configuration ---
 // In production (Vercel), use the full Render backend URL.
 // For local dev, use relative path.
-const RENDER_BACKEND_URL = "https://YOUR-APP-NAME.onrender.com";
+const RENDER_BACKEND_URL = "https://cc-project-backend-pk9d.onrender.com";
 const API_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
     ? "/api"
     : `${RENDER_BACKEND_URL}/api`;
