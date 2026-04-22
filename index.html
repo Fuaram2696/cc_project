@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudLib | Professional Library Management</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+    <!-- Auth Overlay (Phase 4: Toast Notifications will be added later) -->
+    <div id="auth-overlay" class="auth-overlay hidden">
+        <div class="auth-card">
+            <h3 id="auth-title">Welcome to CloudLib</h3>
+            <div class="input-group">
+                <input type="text" id="auth-username" placeholder="Username">
+                <input type="password" id="auth-password" placeholder="Password">
+                <div id="signup-extra-fields" class="hidden">
+                    <input type="text" id="auth-fullname" placeholder="Full Name">
+                    <input type="email" id="auth-email" placeholder="Email Address">
+                    <select id="auth-role">
+                        <option value="Student">Student</option>
+                        <option value="Librarian">Librarian</option>
+                        <option value="Admin">Admin</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 1rem;" id="auth-primary-btn" onclick="handleAuth()">Login</button>
+            <p style="text-align: center; font-size: 0.875rem; color: var(--text-muted)">
+                <span id="auth-toggle-text">Don't have an account?</span> 
+                <a href="#" onclick="toggleAuthMode()" id="auth-toggle-link" style="color: var(--primary); font-weight: 600;">Sign Up</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Main Application Layout -->
+    <div id="main-app" class="hidden" style="width: 100%; display: flex;">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-book-reader"></i>
+                <span>CloudLib</span>
+            </div>
+            <ul class="nav-links">
+                <li id="nav-dashboard" class="active" onclick="setView('dashboard')">
+                    <a href="#"><i class="fas fa-th-large"></i> Dashboard</a>
+                </li>
+                <li id="nav-books" onclick="setView('books')">
+                    <a href="#"><i class="fas fa-book"></i> Catalog</a>
+                </li>
+                <li id="nav-transactions" class="hidden" onclick="setView('transactions')">
+                    <a href="#"><i class="fas fa-exchange-alt"></i> Loans</a>
+                </li>
+                <li id="nav-users" class="hidden" onclick="setView('users')">
+                    <a href="#"><i class="fas fa-users"></i> Users</a>
+                </li>
+            </ul>
+            <div class="user-profile">
+                <img id="user-avatar" src="" alt="avatar">
+                <div class="user-info">
+                    <p id="display-username" style="font-weight: 600; font-size: 0.875rem;"></p>
+                    <p id="display-role" style="font-size: 0.75rem; opacity: 0.7;"></p>
+                </div>
+                <i class="fas fa-sign-out-alt" onclick="logout()" style="margin-left: auto; cursor: pointer; color: #ef4444;"></i>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header>
+                <div class="header-title">
+                    <h2 id="current-view-title">Dashboard</h2>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">Welcome back to your library console.</p>
+                </div>
+                <div class="header-actions">
+                    <div id="librarian-actions" class="hidden">
+                        <button class="btn btn-primary" onclick="openAddBookModal()">
+                            <i class="fas fa-plus"></i> Add Book
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Views -->
+            <div id="view-dashboard" class="view">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="label">Total Books</span>
+                        <span class="value" id="stat-total-books">0</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="label">Available</span>
+                        <span class="value" id="stat-available">0</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="label">Issued</span>
+                        <span class="value" id="stat-issued">0</span>
+                    </div>
+                    <div class="stat-card" style="border-left: 4px solid var(--danger);">
+                        <span class="label">Overdue</span>
+                        <span class="value" id="stat-overdue">0</span>
+                    </div>
+                </div>
+
+                <div class="grid-layout" style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+                    <div class="chart-container">
+                        <h4 style="margin-bottom: 1rem;">Library Analytics</h4>
+                        <canvas id="libraryChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h4 style="margin-bottom: 1rem;">Recent Activity</h4>
+                        <div id="activity-log" style="font-size: 0.875rem; display: flex; flex-direction: column; gap: 1rem;">
+                            <!-- Activity items -->
+                            <p style="color: var(--text-muted);">No recent logs...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 2rem;">
+                    <h4 style="margin-bottom: 1rem;">Recommended for You</h4>
+                    <div id="ai-recommendations" class="books-grid">
+                        <!-- AI Recommendations go here -->
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-books" class="view hidden">
+                <div style="margin-bottom: 2rem; display: flex; gap: 1rem;">
+                    <input type="text" id="book-search" placeholder="Search by title, author, or ISBN..." style="flex: 1;" oninput="fetchBooks()">
+                    <select id="book-filter-category" onchange="fetchBooks()">
+                        <option value="">All Categories</option>
+                        <option value="Fiction">Fiction</option>
+                        <option value="Non-Fiction">Non-Fiction</option>
+                        <option value="Science">Science</option>
+                        <option value="History">History</option>
+                    </select>
+                </div>
+                <div id="books-list" class="books-grid">
+                    <!-- Book cards will be injected here -->
+                </div>
+            </div>
+
+            <div id="view-users" class="view hidden">
+                <div style="margin-bottom: 2rem;">
+                    <h3>System Users</h3>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">Manage roles and account access.</p>
+                </div>
+                <div class="chart-container">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #f1f5f9;">
+                                <th style="padding: 1rem;">User</th>
+                                <th style="padding: 1rem;">Email</th>
+                                <th style="padding: 1rem;">Role</th>
+                                <th style="padding: 1rem;">Joined</th>
+                                <th style="padding: 1rem;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body">
+                            <!-- User rows will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-transactions" class="view hidden">
+                <div style="margin-bottom: 2rem;">
+                    <h3>Loan Management</h3>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">Track books issued and process returns.</p>
+                </div>
+                <div class="chart-container">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #f1f5f9;">
+                                <th style="padding: 1rem;">Book</th>
+                                <th style="padding: 1rem;">User</th>
+                                <th style="padding: 1rem;">Due Date</th>
+                                <th style="padding: 1rem;">Status</th>
+                                <th style="padding: 1rem;">Fine</th>
+                                <th style="padding: 1rem;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="loans-table-body">
+                            <!-- Loan rows will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- More views can be added here -->
+
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-book" class="auth-overlay hidden">
+        <div class="auth-card" style="max-width: 500px;">
+            <h3>Add New Book</h3>
+            <div class="input-group">
+                <input type="text" id="new-book-title" placeholder="Book Title">
+                <input type="text" id="new-book-author" placeholder="Author">
+                <input type="text" id="new-book-isbn" placeholder="ISBN (Optional)">
+                <select id="new-book-category">
+                    <option value="General">General</option>
+                    <option value="Fiction">Fiction</option>
+                    <option value="Non-Fiction">Non-Fiction</option>
+                    <option value="Science">Science</option>
+                    <option value="History">History</option>
+                </select>
+                <textarea id="new-book-desc" placeholder="Description" style="padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; height: 100px;"></textarea>
+                <input type="file" id="new-book-cover" accept="image/*">
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn" style="flex: 1; background: #e2e8f0;" onclick="closeBookModal()">Cancel</button>
+                <button class="btn btn-primary" style="flex: 1;" onclick="addBook()">Save Book</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <div id="toast-container" class="toast-container"></div>
+</body>
+</html>
