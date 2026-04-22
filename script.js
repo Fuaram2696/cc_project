@@ -183,6 +183,8 @@ function renderBooks(books) {
     list.innerHTML = "";
     
     books.forEach(book => {
+        let securePdfUrl = book.pdf_url;
+
         const card = document.createElement('div');
         card.className = 'book-card';
         card.innerHTML = `
@@ -199,7 +201,7 @@ function renderBooks(books) {
                     </span>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <i class="fas fa-qrcode" style="color: var(--primary); cursor: pointer;" onclick="showQRCode(${book.id})" title="View QR Code"></i>
-                        ${book.pdf_url ? `<a href="${book.pdf_url}" target="_blank" title="Read E-Book"><i class="fas fa-file-pdf" style="color: #e11d48; cursor: pointer;"></i></a>` : ''}
+                        ${securePdfUrl ? `<a href="${securePdfUrl}" target="_blank" title="Download E-Book"><i class="fas fa-file-pdf" style="color: #e11d48; cursor: pointer;"></i></a>` : ''}
                         ${book.status === 'Available' 
                             ? `<button class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="issueBook(${book.id})">Borrow</button>` 
                             : `<button class="btn" style="background: var(--warning); color: #fff; padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="reserveBook(${book.id})">Reserve</button>`
@@ -214,34 +216,93 @@ function renderBooks(books) {
 }
 
 async function addBook() {
-    const title = document.getElementById('new-book-title').value;
-    const author = document.getElementById('new-book-author').value;
-    const category = document.getElementById('new-book-category').value;
-    const coverFile = document.getElementById('new-book-cover').files[0];
-    const pdfFile = document.getElementById('new-book-pdf').files[0];
-
-    const formData = new FormData();
-    formData.append("title", title);
-    formData.append("author", author);
-    formData.append("category", category);
-    if (coverFile) formData.append("cover", coverFile);
-    if (pdfFile) formData.append("pdf", pdfFile);
+    const btn = document.querySelector('button[onclick="addBook()"]');
+    const originalText = btn.innerText;
+    btn.innerText = "Saving...";
+    btn.disabled = true;
 
     try {
+        const title = document.getElementById('new-book-title').value;
+        const author = document.getElementById('new-book-author').value;
+        const category = document.getElementById('new-book-category').value;
+        const isbn = document.getElementById('new-book-isbn').value;
+        const description = document.getElementById('new-book-desc').value;
+        const coverFile = document.getElementById('new-book-cover').files[0];
+        const pdfFile = document.getElementById('new-book-pdf').files[0];
+
+        if (!title || !author) {
+            alert("Title and Author are required!");
+            btn.innerText = originalText;
+            btn.disabled = false;
+            return;
+        }
+
+        // Cloudinary Free Tier Limit: 10MB (10 * 1024 * 1024 bytes)
+        const MAX_FILE_SIZE = 10 * 1024 * 1024;
+        
+        if (coverFile && coverFile.size > MAX_FILE_SIZE) {
+            alert("Cover image exceeds the 10MB limit for Cloudinary's free tier. Please choose a smaller file.");
+            btn.innerText = originalText;
+            btn.disabled = false;
+            return;
+        }
+
+        if (pdfFile && pdfFile.size > MAX_FILE_SIZE) {
+            alert("PDF file (" + (pdfFile.size / (1024*1024)).toFixed(1) + "MB) exceeds the 10MB limit for Cloudinary's free tier. Please compress your PDF or choose a smaller one.");
+            btn.innerText = originalText;
+            btn.disabled = false;
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("title", title);
+        formData.append("author", author);
+        formData.append("category", category);
+        if (isbn) formData.append("isbn", isbn);
+        if (description) formData.append("description", description);
+        if (coverFile) formData.append("cover", coverFile);
+        if (pdfFile) formData.append("pdf", pdfFile);
+
         const res = await fetch(`${API_URL}/books/add`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${state.token}` },
             body: formData
         });
+        
         if (res.ok) {
             closeBookModal();
             fetchBooks();
             updateDashboard();
+            
+            // Clear form fields
+            document.getElementById('new-book-title').value = '';
+            document.getElementById('new-book-author').value = '';
+            document.getElementById('new-book-isbn').value = '';
+            document.getElementById('new-book-desc').value = '';
+            document.getElementById('new-book-cover').value = '';
+            document.getElementById('new-book-pdf').value = '';
         } else {
-            const data = await res.json();
-            alert(data.message);
+            let errorMessage = "Failed to add book.";
+            try {
+                const data = await res.json();
+                errorMessage = data.message || errorMessage;
+            } catch (e) {
+                // If the server returns HTML (e.g. 500 stack trace)
+                const text = await res.text();
+                console.error("Server HTML Response:", text.substring(0, 500));
+                errorMessage = "Server returned an invalid response (check console).";
+            }
+            alert(errorMessage);
         }
-    } catch (err) { alert("Error adding book"); }
+    } catch (err) { 
+        console.error("Add Book Error:", err.message || err);
+        alert("Error adding book: " + (err.message || "Network issue.")); 
+    } finally {
+        if (btn) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
 }
 
 async function deleteBook(id) {

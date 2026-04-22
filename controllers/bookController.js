@@ -32,9 +32,14 @@ exports.getBooks = async (req, res) => {
 
 exports.addBook = async (req, res) => {
     try {
-        const { title, author, category, isbn, description, total_copies } = req.body;
+        let { title, author, category, isbn, description, total_copies } = req.body;
         const cover_url = req.files && req.files['cover'] ? req.files['cover'][0].path : null;
         const pdf_url = req.files && req.files['pdf'] ? req.files['pdf'][0].path : null;
+
+        // Convert empty string ISBN to null to avoid UNIQUE constraint violation on empty strings
+        if (!isbn || isbn.trim() === "") {
+            isbn = null;
+        }
 
         const result = await db.query(
             `INSERT INTO books (title, author, category, isbn, description, total_copies, available_copies, cover_url, pdf_url) 

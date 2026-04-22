@@ -15,9 +15,18 @@ exports.signup = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         
+        const roleToCreate = role || 'Student';
+
+        if (roleToCreate === 'Admin' || roleToCreate === 'Librarian') {
+            const existingRoleUser = await db.query('SELECT id FROM users WHERE role = $1 LIMIT 1', [roleToCreate]);
+            if (existingRoleUser.rows.length > 0) {
+                return res.status(400).json({ message: `Only one ${roleToCreate} is allowed.` });
+            }
+        }
+
         const result = await db.query(
             'INSERT INTO users (username, password, role, full_name, email) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, role',
-            [username, hashedPassword, role || 'Student', full_name, email]
+            [username, hashedPassword, roleToCreate, full_name, email]
         );
 
         res.status(201).json({ 

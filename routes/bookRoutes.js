@@ -12,6 +12,7 @@ const storage = new CloudinaryStorage({
   params: {
     folder: 'library_assets',
     allowed_formats: ['jpg', 'png', 'jpeg', 'pdf'],
+    resource_type: 'auto', // Add this to prevent Cloudinary from parsing PDFs as images
   },
 });
 const upload = multer({ storage: storage });

@@ -87,6 +87,15 @@ app.get('/', (req, res) => {
   res.send('Library Management System API Running...');
 });
 
+// Global Error Handler (Forces JSON instead of HTML)
+app.use((err, req, res, next) => {
+    console.error('Unhandled Error:', err);
+    res.status(500).json({ 
+        message: err.message || 'Internal Server Error',
+        details: err.toString()
+    });
+});
+
 // Start Server
 app.listen(PORT, () => {
   console.log(`🚀 Server is listening on port ${PORT}`);
