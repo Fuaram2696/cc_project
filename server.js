@@ -23,20 +23,9 @@ const limiter = rateLimit({
   message: "Too many requests, please try again later."
 });
 app.use(limiter);
-// Allow requests from Vercel frontend and local dev
-const allowedOrigins = [
-  process.env.FRONTEND_URL || "https://YOUR-APP-NAME.vercel.app",
-  "http://localhost:5000",
-  "http://127.0.0.1:5000"
-];
+// Allow all origins for the Vercel frontend
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
+  origin: true, // Allows any origin
   credentials: true
 }));
 app.use(express.json());
