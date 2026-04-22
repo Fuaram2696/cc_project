@@ -12,6 +12,35 @@ const state = {
     charts: {}
 };
 
+// --- Theme Management ---
+function toggleTheme() {
+    const body = document.body;
+    const icon = document.getElementById('theme-icon');
+    if (body.getAttribute('data-theme') === 'light') {
+        body.removeAttribute('data-theme');
+        icon.classList.remove('fa-sun');
+        icon.classList.add('fa-moon');
+        localStorage.setItem('theme', 'dark');
+    } else {
+        body.setAttribute('data-theme', 'light');
+        icon.classList.remove('fa-moon');
+        icon.classList.add('fa-sun');
+        localStorage.setItem('theme', 'light');
+    }
+}
+
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        document.body.setAttribute('data-theme', 'light');
+        const icon = document.getElementById('theme-icon');
+        if(icon) {
+            icon.classList.remove('fa-moon');
+            icon.classList.add('fa-sun');
+        }
+    }
+}
+
 // --- View Management ---
 function setView(viewName) {
     // Hide all views
@@ -35,6 +64,20 @@ function setView(viewName) {
 }
 
 // --- Auth Logic ---
+function togglePasswordVisibility() {
+    const passwordInput = document.getElementById('auth-password');
+    const toggleIcon = document.getElementById('toggle-password');
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleIcon.classList.remove('fa-eye');
+        toggleIcon.classList.add('fa-eye-slash');
+    } else {
+        passwordInput.type = 'password';
+        toggleIcon.classList.remove('fa-eye-slash');
+        toggleIcon.classList.add('fa-eye');
+    }
+}
+
 let isSignupMode = false;
 function toggleAuthMode() {
     isSignupMode = !isSignupMode;
@@ -51,13 +94,15 @@ function toggleAuthMode() {
         toggleLink.innerText = "Login";
         extraFields.classList.remove('hidden');
     } else {
-        title.innerText = "Welcome to CloudLib";
-        primaryBtn.innerText = "Login";
+        title.innerText = "Sign in to CloudLib";
+        primaryBtn.innerText = "Get Started";
         toggleText.innerText = "Don't have an account?";
         toggleLink.innerText = "Sign Up";
         extraFields.classList.add('hidden');
     }
 }
+
+
 
 async function handleAuth() {
     const username = document.getElementById('auth-username').value;
@@ -448,4 +493,7 @@ function logActivity(action, details) {
 }
 
 // --- Start ---
-document.addEventListener('DOMContentLoaded', initApp);
+document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    initApp();
+});

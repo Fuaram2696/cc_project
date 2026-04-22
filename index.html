@@ -15,28 +15,58 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
+    <!-- Theme Toggle -->
+    <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+        <i class="fas fa-moon" id="theme-icon"></i>
+    </button>
 
     <!-- Auth Overlay (Phase 4: Toast Notifications will be added later) -->
     <div id="auth-overlay" class="auth-overlay hidden">
         <div class="auth-card">
-            <h3 id="auth-title">Welcome to CloudLib</h3>
+            <h3 id="auth-title">Sign in to CloudLib</h3>
+            <p id="auth-subtitle" class="auth-subtitle">Make a new doc to bring your words, data,<br>and teams together. For free</p>
+            
             <div class="input-group">
-                <input type="text" id="auth-username" placeholder="Username">
-                <input type="password" id="auth-password" placeholder="Password">
+                <div class="input-with-icon">
+                    <i class="fas fa-envelope input-icon"></i>
+                    <input type="text" id="auth-username" placeholder="Username or Email">
+                </div>
+                
+                <div class="input-with-icon">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" id="auth-password" placeholder="Password">
+                    <i class="fas fa-eye-slash toggle-eye" id="toggle-password" onclick="togglePasswordVisibility()"></i>
+                </div>
+
                 <div id="signup-extra-fields" class="hidden">
-                    <input type="text" id="auth-fullname" placeholder="Full Name">
-                    <input type="email" id="auth-email" placeholder="Email Address">
-                    <select id="auth-role">
-                        <option value="Student">Student</option>
-                        <option value="Librarian">Librarian</option>
-                        <option value="Admin">Admin</option>
-                    </select>
+                    <div class="input-with-icon">
+                        <i class="fas fa-id-badge input-icon"></i>
+                        <input type="text" id="auth-fullname" placeholder="Full Name">
+                    </div>
+                    <div class="input-with-icon">
+                        <i class="fas fa-at input-icon"></i>
+                        <input type="email" id="auth-email" placeholder="Email Address">
+                    </div>
+                    <div class="input-with-icon">
+                        <i class="fas fa-user-tag input-icon"></i>
+                        <select id="auth-role">
+                            <option value="Student">Student</option>
+                            <option value="Librarian">Librarian</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-            <button class="btn btn-primary" style="width: 100%; margin-bottom: 1rem;" id="auth-primary-btn" onclick="handleAuth()">Login</button>
-            <p style="text-align: center; font-size: 0.875rem; color: var(--text-muted)">
+
+            <div class="forgot-password-container">
+                <a href="#" class="forgot-password">Forgot password?</a>
+            </div>
+
+            <button class="btn-get-started" id="auth-primary-btn" onclick="handleAuth()">Get Started</button>
+            
+            <p style="text-align: center; font-size: 0.875rem; color: #64748b; margin-top: 1.5rem;">
                 <span id="auth-toggle-text">Don't have an account?</span> 
-                <a href="#" onclick="toggleAuthMode()" id="auth-toggle-link" style="color: var(--primary); font-weight: 600;">Sign Up</a>
+                <a href="#" onclick="toggleAuthMode()" id="auth-toggle-link" style="color: #0f172a; font-weight: 600;">Sign Up</a>
             </p>
         </div>
     </div>
